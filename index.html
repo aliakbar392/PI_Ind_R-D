@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>R&D Console — Patient Data, Segmentation & Regimens</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Font & Chart.js -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#ffffff;
+      --card:#ffffff;
+      --muted:#475569;      /* slate-600 */
+      --text:#0f172a;       /* slate-900 */
+      --accent:#2563eb;     /* blue-600 */
+      --border:#e2e8f0;     /* slate-200 */
+      --border-dark:#cbd5e1;/* slate-300 */
+      --soft:#f8fafc;       /* slate-50 */
+      --chip:#eef2ff;       /* indigo-50 */
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;background:var(--bg);color:var(--text);
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,Noto Sans,sans-serif;
+      line-height:1.45;
+    }
+
+    /* Header */
+    .appbar{
+      position:sticky;top:0;z-index:50;
+      background:#ffffffd9;backdrop-filter:blur(6px);
+      border-bottom:1px solid var(--border);
+    }
+    .appbar-inner{
+      max-width:1200px;margin:0 auto;
+      padding:14px 20px;display:flex;align-items:center;justify-content:space-between;
+    }
+    .title-wrap{display:flex;align-items:center;gap:12px}
+    .tmh-logo{
+      width:32px;height:32px;border-radius:6px;object-fit:contain;border:1px solid var(--border);
+      background:#fff;padding:2px;
+    }
+    .title-sub{font-size:12px;color:var(--muted);margin:0}
+    .title-main{font-size:20px;font-weight:700;margin:2px 0 0}
+    .chip{
+      background:var(--chip); color:#3730a3; /* indigo-800 */
+      border:1px solid #e0e7ff; padding:6px 10px; border-radius:999px;
+      font-size:12px; font-weight:600;
+    }
+
+    /* Layout */
+    .container{max-width:1200px;margin:0 auto;padding:22px 20px 60px}
+    .grid{display:grid;gap:16px}
+    .grid-2{grid-template-columns:1fr}
+    @media (min-width:1024px){ .grid-2{grid-template-columns:1fr 1fr} }
+
+    /* Cards */
+    .card{
+      background:var(--card); border:1px solid var(--border);
+      border-radius:18px; box-shadow:0 2px 6px rgba(15,23,42,.05);
+    }
+    .card-body{padding:16px}
+    .card-body-lg{padding:20px}
+
+    .section-header{display:flex;align-items:center;justify-content:space-between;margin:20px 0 10px}
+    .section-title{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px}
+    .subnote{color:var(--muted);font-size:12px}
+
+    /* Table */
+    .table-wrap{
+      border:1px solid var(--border); border-radius:16px; overflow:hidden; background:#fff;
+    }
+    .table-scroll{overflow:auto; max-height:420px}
+    table{width:100%; border-collapse:collapse; min-width:800px}
+    thead th{
+      position:sticky; top:0; z-index:1;
+      background:var(--soft); color:#0f172a;
+      font-size:13px; text-align:left; padding:12px 14px; border-bottom:1px solid var(--border);
+    }
+    tbody td{ padding:12px 14px; border-bottom:1px solid var(--border) }
+    tbody tr:hover{ background:#fafafa }
+    .badge{
+      display:inline-block; padding:4px 8px; border-radius:999px; font-size:12px; font-weight:600;
+      border:1px solid var(--border-dark); background:#fff;
+    }
+    .risk-low{ color:#0f766e; border-color:#99f6e4; background:#ecfeff }
+    .risk-med{ color:#92400e; border-color:#fed7aa; background:#fff7ed }
+    .risk-high{ color:#991b1b; border-color:#fecaca; background:#fef2f2 }
+
+    /* Charts */
+    .chart-wrap{height:360px}
+    .chart-wrap-tall{height:420px}
+
+    /* Footer spacing */
+    .spacer{height:24px}
+  </style>
+</head>
+<body>
+  <!-- App Bar -->
+  <div class="appbar">
+    <div class="appbar-inner">
+      <div class="title-wrap">
+        <img src="tmh.png" alt="TMH" class="tmh-logo" />
+        <div>
+          <p class="title-sub">R&D Console — Tata Memorial Hospital</p>
+          <h1 class="title-main">Patient Data → Discovery & Segmentation</h1>
+        </div>
+      </div>
+      <span class="chip">Data source: App + Clinical Events</span>
+    </div>
+  </div>
+
+  <main class="container">
+    <!-- Patient Table -->
+    <div class="section-header">
+      <div class="section-title">📄 Patient Data (Live Ingestion)</div>
+      <div class="subnote">Scroll for more · Sticky header · No text overlaps</div>
+    </div>
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table id="patientTable" aria-label="Patient data table">
+          <thead>
+            <tr>
+              <th>Day</th>
+              <th>Patient ID</th>
+              <th>Mood</th>
+              <th>Pain</th>
+              <th>Temp (°C)</th>
+              <th>Dose</th>
+              <th>Symptoms</th>
+              <th>Risk</th>
+              <th>Cluster</th>
+              <th>Regimen</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody><!-- rows injected by script --></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Discovery & Segmentation -->
+    <div class="section-header">
+      <div class="section-title">🧪 Discovery & Segmentation</div>
+      <div class="subnote">Auto-generated cohorts and regimen allocation for hypothesis screening</div>
+    </div>
+
+    <div class="grid grid-2">
+      <!-- Segmentation distribution -->
+      <div class="card">
+        <div class="card-body-lg">
+          <div class="section-title" style="margin-bottom:8px">🧩 Patient Segments (Count)</div>
+          <div class="chart-wrap"><canvas id="chartSegments"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Regimen usage by segment -->
+      <div class="card">
+        <div class="card-body-lg">
+          <div class="section-title" style="margin-bottom:8px">💊 Regimen Usage by Segment</div>
+          <div class="chart-wrap"><canvas id="chartRegimens"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Response over time (bonus) -->
+    <div class="spacer"></div>
+    <div class="card">
+      <div class="card-body-lg">
+        <div class="section-title" style="margin-bottom:8px">📈 Avg Response over 21 Days (by Segment)</div>
+        <div class="subnote" style="margin-bottom:12px">Simulated composite response index (higher is better). Spikes on days 10–11 modeled for instability segment.</div>
+        <div class="chart-wrap-tall"><canvas id="chartResponse"></canvas></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // ------- Dummy generator (21 days; spikes day 9–11) ------- //
+    const days = Array.from({length:21}, (_,i)=> i+1);
+    function withSpikes(base, amp){
+      const arr=[]; 
+      for(let d=1; d<=21; d++){
+        let v = base + Math.round((Math.sin(d/2.4)+1)*3);
+        if(d===9)  v += amp*1.1;
+        if(d===10) v += amp*1.7;
+        if(d===11) v += amp*1.2;
+        arr.push(v);
+      }
+      return arr;
+    }
+
+    // Segment tags
+    const SEGMENTS = [
+      "Stable Low-Risk",
+      "High-Risk Spike",
+      "Post-Op Monitor",
+      "Diabetic Comorbidity"
+    ];
+    const REGIMENS = ["A","B","C"];
+
+    // Create 21 table rows (sample patients rotating segments/regimens)
+    const tbody = document.querySelector('#patientTable tbody');
+    const moods = ["good","ok","bad"];
+    const symptomsOpts = ["none","nausea","fatigue","fever","headache"];
+    const notesOpts = ["—","observe","increase fluids","tele-check","dietary note"];
+
+    const sysVals = withSpikes(118,14);
+    const tempVals = withSpikes(37.1, 0.6).map(v=>+(v).toFixed(1)); // in °C
+    const painVals = withSpikes(3,2);
+
+    const rows = days.map((d, idx)=>{
+      // rotate patient ids, clusters, regimens deterministically
+      const pid = `PID-${(1000+idx)}`;
+      const cluster = SEGMENTS[idx % SEGMENTS.length];
+      const mood = moods[idx % moods.length];
+      const pain = Math.max(0, Math.min(10, painVals[idx]));
+      const temp = tempVals[idx];
+      const dose = (idx % 2 === 0) ? "yes" : "no";
+      const sym = symptomsOpts[idx % symptomsOpts.length];
+      const risk = cluster === "High-Risk Spike" ? "High" : (cluster === "Stable Low-Risk" ? "Low" : "Medium");
+      const regimen = REGIMENS[idx % REGIMENS.length];
+      const notes = notesOpts[idx % notesOpts.length];
+      return {d, pid, mood, pain, temp, dose, sym, risk, cluster, regimen, notes};
+    });
+
+    rows.forEach(r=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${r.d}</td>
+        <td>${r.pid}</td>
+        <td>${r.mood}</td>
+        <td>${r.pain}</td>
+        <td>${r.temp}</td>
+        <td>${r.dose}</td>
+        <td>${r.sym}</td>
+        <td>${riskBadge(r.risk)}</td>
+        <td>${r.cluster}</td>
+        <td>${r.regimen}</td>
+        <td>${r.notes}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    function riskBadge(level){
+      const cls = level==="High" ? "risk-high" : (level==="Medium" ? "risk-med":"risk-low");
+      return `<span class="badge ${cls}">${level}</span>`;
+    }
+
+    // ------- Aggregate for charts ------- //
+    const bySegment = SEGMENTS.reduce((acc,s)=> (acc[s]=0, acc), {});
+    const bySegmentRegimen = SEGMENTS.reduce((acc,s)=> (acc[s]={A:0,B:0,C:0}, acc), {});
+    rows.forEach(r=>{
+      bySegment[r.cluster] += 1;
+      bySegmentRegimen[r.cluster][r.regimen] += 1;
+    });
+
+    // Simulated Response Index per day per segment (to show trend chart)
+    // Stable Low-Risk improves steadily; High-Risk Spike dips around day 10–11; Post-Op improves; Diabetic modest uptrend.
+    const respDays = days.map(d=>`Day ${d}`);
+    const respStable = days.map(d=> 60 + d*1.2);
+    const respSpike  = days.map(d=> 65 + d*0.8 - (d===10?10:(d===11?6: (d===9?5:0))));
+    const respPostOp = days.map(d=> 55 + d*1.5);
+    const respDiab   = days.map(d=> 50 + d*1.0);
+
+    // ------- Chart helpers (light theme) ------- //
+    const axis = '#334155', grid = 'rgba(148,163,184,0.25)';
+    const baseOptions = {
+      responsive:true, maintainAspectRatio:false,
+      scales:{
+        x:{ ticks:{ color:axis, maxRotation:0, autoSkip:true }, grid:{ color:grid } },
+        y:{ ticks:{ color:axis }, grid:{ color:grid } }
+      },
+      plugins:{ legend:{ labels:{ color:'#0f172a' } }, tooltip:{ mode:'index', intersect:false } }
+    };
+
+    // Segmentation (bar)
+    new Chart(document.getElementById('chartSegments'), {
+      type:'bar',
+      data:{
+        labels:Object.keys(bySegment),
+        datasets:[{ label:'Patients', data:Object.values(bySegment), borderWidth:1 }]
+      },
+      options: baseOptions
+    });
+
+    // Regimen usage (stacked bar)
+    const regLabels = Object.keys(bySegmentRegimen);
+    const regDataA = regLabels.map(s=>bySegmentRegimen[s].A);
+    const regDataB = regLabels.map(s=>bySegmentRegimen[s].B);
+    const regDataC = regLabels.map(s=>bySegmentRegimen[s].C);
+
+    new Chart(document.getElementById('chartRegimens'), {
+      type:'bar',
+      data:{
+        labels: regLabels,
+        datasets:[
+          { label:'Regimen A', data: regDataA, borderWidth:1 },
+          { label:'Regimen B', data: regDataB, borderWidth:1 },
+          { label:'Regimen C', data: regDataC, borderWidth:1 }
+        ]
+      },
+      options:{
+        ...baseOptions,
+        scales:{
+          x:{ ...baseOptions.scales.x, stacked:true },
+          y:{ ...baseOptions.scales.y, stacked:true, suggestedMin:0 }
+        }
+      }
+    });
+
+    // Response over time (multi-line)
+    new Chart(document.getElementById('chartResponse'), {
+      type:'line',
+      data:{
+        labels: respDays,
+        datasets:[
+          { label:'Stable Low-Risk', data:respStable, borderWidth:2, tension:0.35 },
+          { label:'High-Risk Spike', data:respSpike,  borderWidth:2, tension:0.35 },
+          { label:'Post-Op Monitor', data:respPostOp,  borderWidth:2, tension:0.35 },
+          { label:'Diabetic Comorbidity', data:respDiab, borderWidth:2, tension:0.35 },
+        ]
+      },
+      options: baseOptions
+    });
+  </script>
+</body>
+</html>
